@@ -13,6 +13,12 @@
 <div class="hero home-hero"><p class="kicker">国土交通省 官庁営繕 令和7年版</p>
 <h1>機械設備 標準仕様書・標準図<br>工事別まとめ</h1>
 <p>「公共建築工事標準仕様書（機械設備工事編）」と「公共建築設備工事標準図（機械設備工事編）」から、冷媒・ドレン・ダクト・衛生配管にかかわる条文と図を工事ごとに整理しました。スマホでも現場で引けるように、早見表・原本ページ画像付きです。</p></div>
+<section id="find" class="find"><h2>全ページから探す</h2>
+<div class="search home-search"><input id="gq" type="search" placeholder="例：吊り 間隔／真空／ダクト 板厚" autocomplete="off"><span id="gqn"></span></div>
+<div class="chips gchips"><button type="button" class="chip" data-q="勾配">勾配</button><button type="button" class="chip" data-q="吊り 間隔">吊り間隔</button><button type="button" class="chip" data-q="振れ止め">振れ止め</button><button type="button" class="chip" data-q="試験">試験</button><button type="button" class="chip" data-q="保温 厚さ">保温厚さ</button><button type="button" class="chip" data-q="板厚">板厚</button><button type="button" class="chip" data-q="真空">真空</button><button type="button" class="chip" data-q="トラップ">トラップ</button><button type="button" class="chip" data-q="防火区画">防火区画</button><button type="button" class="chip" data-q="埋設">埋設</button></div>
+<p class="note">早見表・条文・標準図をまとめて検索します。スペースで区切ると全部を含むものに絞り込み。言い換え（ピッチ→間隔、SUS→ステンレス、断熱→保温 など）にも対応。</p>
+<div id="gres"></div></section>
+<h2 class="cardsh">工事から探す</h2>
 <div class="cards"><a class="card h-reibai" href="reibai.html"><span class="ci">❄</span><b>冷媒配管</b><span>パッケージ・マルチ形空調機の冷媒配管（銅管・断熱材被覆銅管）に関する規定。</span></a><a class="card h-drain" href="drain.html"><span class="ci">💧</span><b>ドレン配管</b><span>空調機・FCU等のドレン管。仕様書上は排水及び通気配管（2.4.8）の扱い。</span></a><a class="card h-duct" href="duct.html"><span class="ci">▭</span><b>ダクト</b><span>長方形ダクト（アングルフランジ・コーナーボルト）、スパイラルダクト、排煙ダクト、吊り・支持・接合・附属品。</span></a><a class="card h-eisei" href="eisei.html"><span class="ci">🚰</span><b>衛生配管</b><span>給水・給湯・排水・通気配管の管材、接合、勾配、支持、地中配管、試験、保温。</span></a><a class="card h-kyotsu" href="kyotsu.html"><span class="ci">⚙</span><b>共通事項</b><span>全工事にかかわる配管施工の一般事項・保温工事の一般事項。</span></a></div>
 <section class="howto"><h2>使い方</h2>
 <ul>
@@ -29,5 +35,5 @@
 <p>本サイトは国土交通省が作成・監修したものではありません。条文は原本PDFから機械的に抽出したもの、早見表は要約です。実際の工事では設計図書（特記仕様・図面等）が標準仕様書に優先します（標準仕様書 1.1.1）。必ず原本・設計図書で確認してください。</p>
 </div></footer>
 <dialog id="lb"><div class="lbbar"><span id="lbcap"></span><button id="lbzoom" type="button">拡大</button><a id="lbopen" target="_blank" rel="noopener">別タブ</a><button id="lbclose" type="button">閉じる</button></div><div class="lbimg"><img id="lbimg" alt=""></div></dialog>
-<script src="app.js"></script>
+<script src="search-index.js"></script><script src="app.js"></script>
 </body></html>
