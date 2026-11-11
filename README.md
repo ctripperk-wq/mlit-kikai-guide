@@ -15,7 +15,7 @@
 各ページの構成
 - **早見表**：主要な数値・ルールの要約（根拠条項つき）
 - **標準仕様書 条文**：原本PDFからテキストを機械抽出（原本ページ画像へのリンク付き）
-- **標準図**：該当図の画像（タップで拡大）
+- **標準図**：該当図を画面幅いっぱいに表示（余白を自動トリミング、拡大ビューアで＋／－・ダブルタップ拡大）
 
 ## GitHub Pages での公開
 Settings → Pages → Build and deployment → Source: **Deploy from a branch** → Branch: `main` / `/ (root)` → Save

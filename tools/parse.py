@@ -56,7 +56,7 @@ def extract(lines, heads, hen, num):
                     break
             body = lines[i + 1:end]
             pages = sorted({p} | {bp for bp, l in body if l.strip()})
-            return title, pages, [l for _, l in body]
+            return title, pages, body
     raise KeyError(f"{hen}編 {num} が見つかりません")
 
 
@@ -76,18 +76,18 @@ def level(mark):
     return None
 
 
-def render_body(raw_lines):
-    """行を段落・表に整形してHTML文字列を返す"""
-    blocks = []  # (type, level, text) type: p / tbl / sub
+def render_body(pairs, tbl_link=None):
+    """(page, line) を段落・表に整形してHTML文字列を返す。tbl_link(page) は原本画像ボタンHTML"""
+    blocks = []  # [type, level, text, page]
     cur_level = 1
-    for raw in raw_lines:
+    for pg, raw in pairs:
         if not raw.strip():
             continue
         s = raw.strip()
         lead = len(raw) - len(raw.lstrip(" "))
         sm = SUB_RE.match(s)
         if sm and lead <= 3 and not sm.group(2)[0].isdigit():
-            blocks.append(["sub", 0, f"{sm.group(1)} {re.sub(r'\s+', ' ', sm.group(2))}"])
+            blocks.append(["sub", 0, f"{sm.group(1)} {re.sub(r'\s+', ' ', sm.group(2))}", pg])
             continue
         m = MARK_RE.match(s)
         if m:
@@ -97,10 +97,10 @@ def render_body(raw_lines):
             if lv:
                 cur_level = lv
                 text = mk + " " + re.sub(r"^\s+", "", rest)
-                blocks.append(["p", lv, re.sub(r" {2,}", " ", text)])
+                blocks.append(["p", lv, re.sub(r" {2,}", " ", text), pg])
             else:  # なお・ただし・注
                 txt = re.sub(r" {2,}", " ", s)
-                blocks.append(["p", cur_level if not mk.startswith("注") else 1, txt])
+                blocks.append(["pc", cur_level if not mk.startswith("注") else 1, txt, pg])
             continue
         is_tbl_line = bool(re.search(r"\S {3,}\S", s)) or bool(re.match(r"^表\s?\d", s))
         prev = blocks[-1] if blocks else None
@@ -108,23 +108,29 @@ def render_body(raw_lines):
             if prev and prev[0] == "tbl":
                 prev[2] += "\n" + raw.rstrip()
             else:
-                blocks.append(["tbl", 0, raw.rstrip()])
+                blocks.append(["tbl", 0, raw.rstrip(), pg])
             continue
         # 継続行
-        if prev and prev[0] == "p":
+        if prev and prev[0] in ("p", "pc"):
             prev[2] += s
         else:
-            blocks.append(["p", cur_level, s])
+            blocks.append(["p", cur_level, s, pg])
 
     out = []
-    for t, lv, txt in blocks:
+    for t, lv, txt, pg in blocks:
         if t == "sub":
             out.append(f'<h4 class="sub">{html.escape(txt)}</h4>')
         elif t == "tbl":
             lines = txt.split("\n")
             ind = min(len(l) - len(l.lstrip(" ")) for l in lines if l.strip())
             body = "\n".join(l[ind:] for l in lines)
-            out.append(f'<pre class="tbl">{html.escape(body)}</pre>')
+            cap = re.search(r"表\s?[0-9.]+[^\n]*", body)
+            cap = re.sub(r"\s{2,}", " ", cap.group(0)).strip() if cap else "表"
+            btn = tbl_link(pg, cap) if tbl_link else ""
+            out.append(f'<div class="tblbox">{btn}<details class="tbltxt"><summary>テキストで表示（罫線が崩れます）</summary>'
+                       f'<pre class="tbl">{html.escape(body)}</pre></details></div>')
+        elif t == "pc":
+            out.append(f'<p class="l{lv} cont">{html.escape(txt)}</p>')
         else:
             out.append(f'<p class="l{lv}">{html.escape(txt)}</p>')
     return "\n".join(out)

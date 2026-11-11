@@ -27,6 +27,24 @@ CHIPS = {
 HOME_CHIPS = ["勾配", "吊り 間隔", "振れ止め", "試験", "保温 厚さ", "板厚", "真空", "トラップ", "防火区画", "埋設"]
 
 
+CAT_ORDER = ["材料・区分", "施工", "支持・吊り", "試験", "保温"]
+
+
+def cat_of(name):
+    if re.search(r"保温|断熱厚|化粧", name): return "保温"
+    if re.search(r"試験|作業順序", name): return "試験"
+    if re.search(r"吊り|振れ止め|立て管|支持|埋設|給水管と排水管|埋設表示", name): return "支持・吊り"
+    if re.search(r"管材|肉厚|材質|板厚|区分|扱い|使用場所|接合材|コーナーボルト", name): return "材料・区分"
+    return "施工"
+
+
+NUM_RE = re.compile(r"(\d+/\d+|\d[\d,.]*\s*(?:mm|ｍｍ|m|ｍ|MPa|Pa|°|℃|分|秒|倍|箇所|mg/L)(?![A-Za-z]))")
+
+
+def em_num(s):
+    return NUM_RE.sub(lambda m: f"<strong>{m.group(1)}</strong>", E(s))
+
+
 def plain(raw_lines):
     return re.sub(r"\s+", " ", " ".join(l.strip() for l in raw_lines if l.strip()))
 
@@ -52,7 +70,14 @@ ZU_FIX = {  # 図示記号ページの名称補足
 def spec_link(p, label=None):
     spec_pages.add(p)
     return (f'<a class="pg" href="img/spec/p{p:03d}.jpg" data-full="img/spec/p{p:03d}.jpg" '
-            f'data-cap="標準仕様書 原本PDF {p}ページ">{E(label or f"原本 p.{p}")}</a>')
+            f'data-cap="標準仕様書 PDF p.{p}（紙面{p - 1}）">{E(label or f"p.{p}")}<small>紙面{p - 1}</small></a>')
+
+
+def tbl_link(p, cap):
+    spec_pages.add(p)
+    return (f'<a class="tblbtn" href="img/spec/p{p:03d}.jpg" data-full="img/spec/p{p:03d}.jpg" '
+            f'data-cap="標準仕様書 原本PDF {p}ページ（{E(cap)}）">'
+            f'<span class="ico">▦</span><span><b>{E(cap)}</b><small>原本の表を画像で見る（PDF p.{p}／紙面{p - 1}）</small></span></a>')
 
 
 def ref_html(ref):
@@ -66,21 +91,25 @@ def clause_html(hen, num, wid):
     return (f'<details class="cl" id="{cid}">'
             f'<summary><span class="num">{E(num)}</span><span class="ttl">{E(title)}</span>'
             f'<span class="hen">第{hen}編</span></summary>'
-            f'<div class="body"><div class="pgs">原本ページ：{pg} '
+            f'<div class="body"><div class="pgs">原本ページ（タップで画像）：{pg} '
             f'<a class="ext" href="{SPEC_URL}#page={pages[0]}" target="_blank" rel="noopener">国交省PDF↗</a></div>'
-            f'{parse.render_body(body)}'
-            f'<p class="tblnote">※表の罫線はテキスト化で崩れます。数値は必ず原本ページ画像で確認してください。</p>'
-            f'</div></details>'), (hen, num, title, cid, plain(body))
+            f'{parse.render_body(body, tbl_link)}'
+            f'</div></details>'), (hen, num, title, cid, plain([l for _, l in body]))
+
+
+ZU_SIZE = {}
 
 
 def zu_card(p):
     zu_pages.add(p)
     t = ZU_FIX.get(p, zu_t.get(p, ""))
     t = re.sub(r"\s*単位.*$", "", t)
-    return (f'<figure class="zu" id="z{p}"><a href="img/zu/p{p:03d}.jpg" data-full="img/zu/p{p:03d}.jpg" '
-            f'data-cap="標準図 原本PDF {p}ページ：{E(t)}">'
-            f'<img loading="lazy" src="img/zu/t{p:03d}.jpg" alt="{E(t)}"></a>'
-            f'<figcaption>{E(t)}<span>原本PDF p.{p}・<a href="{ZU_URL}#page={p}" target="_blank" rel="noopener">国交省PDF↗</a></span></figcaption></figure>')
+    w, h = ZU_SIZE.get(p, (900, 1100))
+    return (f'<figure class="zu" id="z{p}"><figcaption><b>{E(t)}</b><span>標準図 PDF p.{p}（紙面{p - 1}）</span></figcaption>'
+            f'<a class="zuimg" href="img/zu/p{p:03d}.jpg" data-full="img/zu/p{p:03d}.jpg" data-cap="標準図 p.{p}：{E(t)}">'
+            f'<img loading="lazy" decoding="async" src="img/zu/m{p:03d}.jpg" width="{w}" height="{h}" alt="{E(t)}"></a>'
+            f'<div class="zubar"><a href="img/zu/p{p:03d}.jpg" data-full="img/zu/p{p:03d}.jpg" data-cap="標準図 p.{p}：{E(t)}">🔍 拡大して見る</a>'
+            f'<a href="{ZU_URL}#page={p}" target="_blank" rel="noopener">国交省PDF↗</a></div></figure>')
 
 
 CSS = open(os.path.join(os.path.dirname(__file__), "style.css"), encoding="utf-8").read()
@@ -107,7 +136,7 @@ def page(fname, title, active, main, desc, extra_js=""):
 「公共建築設備工事標準図（機械設備工事編）令和7年版」（同）<a href="{ZU_PAGE}" target="_blank" rel="noopener">{ZU_PAGE}</a> を加工して作成。</p>
 <p>本サイトは国土交通省が作成・監修したものではありません。条文は原本PDFから機械的に抽出したもの、早見表は要約です。実際の工事では設計図書（特記仕様・図面等）が標準仕様書に優先します（標準仕様書 1.1.1）。必ず原本・設計図書で確認してください。</p>
 </div></footer>
-<dialog id="lb"><div class="lbbar"><span id="lbcap"></span><button id="lbzoom" type="button">拡大</button><a id="lbopen" target="_blank" rel="noopener">別タブ</a><button id="lbclose" type="button">閉じる</button></div><div class="lbimg"><img id="lbimg" alt=""></div></dialog>
+<dialog id="lb"><div class="lbbar"><span id="lbcap"></span><button id="lbout" type="button" aria-label="縮小">－</button><span id="lbz">100%</span><button id="lbin" type="button" aria-label="拡大">＋</button><a id="lbopen" target="_blank" rel="noopener">別タブ</a><button id="lbclose" type="button">✕</button></div><div class="lbimg"><img id="lbimg" alt=""></div></dialog>
 {extra_js}<script src="app.js"></script>
 </body></html>"""
     with open(os.path.join(OUT, fname), "w", encoding="utf-8") as f:
@@ -118,14 +147,18 @@ def work_page(w):
     parts, toc = [], []
     quick = w.get("quick")
     if quick:
-        rows = ""
+        cats = {}
         for i, (a, bb, c) in enumerate(quick):
             qid = f"q-{w['id']}-{i}"
-            rows += f'<tr class="q" id="{qid}"><th>{E(a)}</th><td>{E(bb)}</td><td>{ref_html(c)}</td></tr>'
+            cats.setdefault(cat_of(a), []).append(
+                f'<div class="q" id="{qid}"><div class="qk">{E(a)}</div><div class="qv">{em_num(bb)}</div>'
+                f'<div class="qr">根拠 {ref_html(c)}</div></div>')
             IDX.append({"k": "早見表", "w": [w["id"]], "h": f"{w['id']}.html#{qid}", "t": a, "x": f"{bb}（根拠 {c}）"})
+        rows = "".join(f'<div class="qcat"><h3>{E(k)}</h3><div class="qlist">{"".join(cats[k])}</div></div>'
+                       for k in CAT_ORDER if k in cats)
         parts.append(f'<section id="quick"><h2>早見表</h2>'
                      f'<p class="note">主要な数値・ルールの要約です。根拠欄の「2-2.4.6(2)」は「第2編 2.4.6 (2)」を表します。</p>'
-                     f'<table class="qt"><thead><tr><th>項目</th><th>規定</th><th>根拠</th></tr></thead><tbody>{rows}</tbody></table></section>')
+                     f'{rows}</section>')
         toc.append(("quick", "早見表"))
     # 条文
     groups, cur = [], None
@@ -210,26 +243,65 @@ def index_page():
     page("index.html", "トップ", "", main, extra_js='<script src="search-index.js"></script>', desc="国交省 公共建築工事標準仕様書・標準図（機械設備工事編）令和7年版を冷媒・ドレン・ダクト・衛生配管の工事別に整理")
 
 
+def _trim(path, top=None, bottom=None, pad=0.02):
+    """ヘッダー行・フッター行（ページ番号）を除き、図の範囲で切り抜く"""
+    from PIL import Image, ImageOps
+    im = Image.open(path).convert("L")
+    W, H = im.size
+    inv = ImageOps.invert(im).point(lambda v: 255 if v > 60 else 0)
+    rows = [1 if inv.crop((0, y, W, y + 1)).getbbox() else 0 for y in range(H)]
+    bands, y = [], 0
+    while y < H:
+        if rows[y]:
+            s = y
+            while y < H and rows[y]:
+                y += 1
+            bands.append((s, y))
+        y += 1
+    t0, b0 = 0, H
+    if bands and bands[0][1] < H * 0.09:           # 上端のヘッダー行
+        t0 = bands[0][1]
+        bands = bands[1:]
+    if bands and bands[-1][0] > H * 0.86:          # 下端のページ番号行
+        b0 = bands[-1][0]
+    body = im.crop((0, t0, W, b0))
+    bbox = ImageOps.invert(body).point(lambda v: 255 if v > 40 else 0).getbbox()
+    if bbox:
+        px = int(W * pad)
+        l, t, r, bt = bbox
+        body = body.crop((max(0, l - px), max(0, t - px), min(body.width, r + px), min(body.height, bt + px)))
+    return body
+
+
 def render_images():
-    for kind, pdf, pages, dpi in (("spec", SPEC_PDF, spec_pages, 130), ("zu", ZU_PDF, zu_pages, 160)):
+    import tempfile
+    from PIL import Image
+    tmp = tempfile.mkdtemp()
+    for kind, pdf, pages, dpi in (("spec", SPEC_PDF, spec_pages, 170), ("zu", ZU_PDF, zu_pages, 220)):
         d = os.path.join(OUT, "img", kind)
         os.makedirs(d, exist_ok=True)
         for p in sorted(pages):
             dst = os.path.join(d, f"p{p:03d}.jpg")
-            if not os.path.exists(dst):
+            if not os.path.exists(dst) or (kind == "zu" and not os.path.exists(os.path.join(d, f"m{p:03d}.jpg"))):
+                raw = os.path.join(tmp, f"{kind}{p}")
                 subprocess.run(["pdftoppm", "-f", str(p), "-l", str(p), "-r", str(dpi), "-gray",
-                                "-jpeg", "-jpegopt", "quality=72,optimize=y", "-singlefile",
-                                pdf, dst[:-4]], check=True)
+                                "-png", "-singlefile", pdf, raw], check=True)
+                im = _trim(raw + ".png")
+                im.save(dst, "JPEG", quality=82, optimize=True, progressive=True)
+                if kind == "zu":
+                    m = im.copy(); m.thumbnail((1000, 1600), Image.LANCZOS)
+                    m.save(os.path.join(d, f"m{p:03d}.jpg"), "JPEG", quality=78, optimize=True, progressive=True)
             if kind == "zu":
-                th = os.path.join(d, f"t{p:03d}.jpg")
-                if not os.path.exists(th):
-                    subprocess.run(["pdftoppm", "-f", str(p), "-l", str(p), "-scale-to", "480", "-gray",
-                                    "-jpeg", "-jpegopt", "quality=70,optimize=y", "-singlefile",
-                                    pdf, th[:-4]], check=True)
+                with Image.open(os.path.join(d, f"m{p:03d}.jpg")) as m:
+                    ZU_SIZE[p] = m.size
 
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
+    for w in ALL:
+        for p in w["zu"]:
+            zu_pages.add(p)
+    render_images()
     for w in WORKS:
         work_page(w)
     work_page(COMMON)
@@ -241,5 +313,5 @@ if __name__ == "__main__":
         f.write(CSS)
     with open(os.path.join(OUT, "app.js"), "w", encoding="utf-8") as f:
         f.write(JS)
-    render_images()
+    render_images()  # 条文の表で追加されたページ
     print("spec pages:", len(spec_pages), "zu pages:", len(zu_pages))

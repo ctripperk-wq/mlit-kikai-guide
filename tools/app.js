@@ -63,7 +63,7 @@
     var el = id && document.getElementById(id);
     if (!el) return;
     if (el.tagName === 'DETAILS') el.open = true;
-    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    if (el.tagName !== 'SECTION') { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
     setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 30);
   }
   window.addEventListener('hashchange', openHash);
@@ -72,7 +72,7 @@
   // ---- ページ内検索 ----
   var q = document.getElementById('q'), qn = document.getElementById('qn');
   if (q) {
-    var items = Array.prototype.slice.call(document.querySelectorAll('tr.q, details.cl, figure.zu'));
+    var items = Array.prototype.slice.call(document.querySelectorAll('div.q, details.cl, figure.zu'));
     items.forEach(function (el) { el._t = norm(el.textContent); });
     var saved = new Map();
     var clearMarks = function () {
@@ -94,8 +94,11 @@
         }
       });
       document.querySelectorAll('section').forEach(function (s) {
-        var vis = s.querySelector('tr.q:not([style*="none"]), details.cl:not([style*="none"]), figure.zu:not([style*="none"])');
+        var vis = s.querySelector('div.q:not([style*="none"]), details.cl:not([style*="none"]), figure.zu:not([style*="none"])');
         s.style.display = (!groups.length || vis) ? '' : 'none';
+      });
+      document.querySelectorAll('.qcat').forEach(function (c) {
+        c.style.display = (!groups.length || c.querySelector('div.q:not([style*="none"])')) ? '' : 'none';
       });
       document.querySelectorAll('h3.hen').forEach(function (h) {
         var n = h.nextElementSibling, vis = false;
@@ -163,27 +166,47 @@
     });
   }
 
-  // ---- ライトボックス ----
+  // ---- ライトボックス（段階ズーム・ダブルタップ） ----
   var lb = document.getElementById('lb');
   if (lb && lb.showModal) {
     var img = document.getElementById('lbimg'), cap = document.getElementById('lbcap'),
-        box = lb.querySelector('.lbimg'), op = document.getElementById('lbopen');
+        box = lb.querySelector('.lbimg'), op = document.getElementById('lbopen'),
+        zl = document.getElementById('lbz'), LV = [1, 1.5, 2, 3, 4], zi = 0;
+    var setZoom = function (i, cx, cy) {
+      var oldW = img.clientWidth || 1;
+      zi = Math.max(0, Math.min(LV.length - 1, i));
+      img.style.width = (LV[zi] * 100) + '%';
+      img.style.maxWidth = zi ? 'none' : '100%';
+      zl.textContent = Math.round(LV[zi] * 100) + '%';
+      if (cx != null) {
+        var r = img.clientWidth / oldW, rect = box.getBoundingClientRect();
+        var x = (box.scrollLeft + cx - rect.left) * r - (cx - rect.left);
+        var y = (box.scrollTop + cy - rect.top) * r - (cy - rect.top);
+        box.scrollLeft = x; box.scrollTop = y;
+      }
+    };
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[data-full]');
       if (!a) return;
       e.preventDefault();
       img.src = a.dataset.full; img.alt = a.dataset.cap || '';
       cap.textContent = a.dataset.cap || ''; op.href = a.dataset.full;
-      box.classList.remove('zoom'); box.scrollTop = 0;
-      document.getElementById('lbzoom').textContent = '拡大';
+      setZoom(0); box.scrollTop = 0; box.scrollLeft = 0;
       lb.showModal();
     });
     document.getElementById('lbclose').onclick = function () { lb.close(); };
-    document.getElementById('lbzoom').onclick = function () {
-      var z = box.classList.toggle('zoom');
-      this.textContent = z ? '縮小' : '拡大';
-    };
-    img.addEventListener('dblclick', function () { document.getElementById('lbzoom').click(); });
-    lb.addEventListener('click', function (e) { if (e.target === box) lb.close(); });
+    document.getElementById('lbin').onclick = function () { var r = box.getBoundingClientRect(); setZoom(zi + 1, r.left + r.width / 2, r.top + r.height / 2); };
+    document.getElementById('lbout').onclick = function () { var r = box.getBoundingClientRect(); setZoom(zi - 1, r.left + r.width / 2, r.top + r.height / 2); };
+    var lastTap = 0;
+    img.addEventListener('click', function (e) {
+      var now = Date.now();
+      if (now - lastTap < 320) { setZoom(zi ? 0 : 2, e.clientX, e.clientY); lastTap = 0; } else lastTap = now;
+    });
+    lb.addEventListener('click', function (e) { if (e.target === box && zi === 0) lb.close(); });
+    document.addEventListener('keydown', function (e) {
+      if (!lb.open) return;
+      if (e.key === '+' || e.key === '=') document.getElementById('lbin').click();
+      if (e.key === '-') document.getElementById('lbout').click();
+    });
   }
 })();
